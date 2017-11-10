@@ -29,7 +29,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
     }
 
 
-    private void closeConnection() {
+    void closeConnection() {
         try {
             zooKeeperConnection.close();
         } catch (InterruptedException e) {
@@ -139,21 +139,4 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
         zooKeeper.delete(path, version);
 
     }
-
-    public static void main(String[] args) {
-        // znode path
-        String path = "/MyFirstZnode"; // Assign path to znode
-
-        // data in byte array
-        byte[] data = "My first zookeeper app".getBytes(); // Declare data
-
-        ZooKeeperClientManager zkClient = new ZooKeeperClientManager();
-        try {
-            zkClient.create(path, data);
-            zkClient.closeConnection();
-        } catch (KeeperException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
 }
