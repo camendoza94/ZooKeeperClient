@@ -13,12 +13,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.List;
+import javax.management.ServiceNotFoundException;
 
 @RestController
 @RequestMapping("/zoo")
@@ -31,72 +26,64 @@ class ZooKeeperController {
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) {
-        String URL = triggerMatching(observation.getDeviceId());
+        String URL = null;
+        try {
+            URL = triggerMatching(observation.getDeviceId());
+        } catch (ServiceNotFoundException e) {
+            //TODO No Matching
+        }
         JsonParser parser = new JsonParser();
         JsonObject body = parser.parse(observation.getPayload()).getAsJsonObject();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
-        //TODO get labels and types and use them on the POST
+        //TODO Catch 5xx
         return template.postForEntity(URL, entity, String.class);
     }
 
     /*
         Trigger semantic matching when ZooKeeper does not find a corresponding znode
      */
-    private String triggerMatching(String deviceId) {
+    private String triggerMatching(String deviceId) throws ServiceNotFoundException {
         ResponseEntity<String> response = template.postForEntity(SEMANTIC_INTERFACE_HOST + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
         if (response.getStatusCode().is2xxSuccessful()) {
-            String path = response.getBody();
+            String paths = response.getBody();
+            if (paths.isEmpty())
+                throw new ServiceNotFoundException();
             try {
-                //TODO use multi() to create path and check if each path exists.
-                List<String> devices = (List<String>) zooKeeperClientManager.getZNodeData("/" + path, false);
-                ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                ObjectOutput out;
-                if (devices == null) {
-                    ArrayList<String> newData = new ArrayList<>();
-                    newData.add(deviceId);
-                    try {
-                        out = new ObjectOutputStream(bos);
-                        out.writeObject(newData);
-                        out.flush();
-                        byte[] bytes = bos.toByteArray();
-                        zooKeeperClientManager.create("/" + path, bytes);
-                    } finally {
-                        try {
-                            bos.close();
-                        } catch (IOException ex) {
-                            ex.printStackTrace();
+                //TODO use multi() to create paths
+                String[] services = paths.split("\n");
+                for (String path : services)
+                    if (!path.isEmpty()) {
+                        if (zooKeeperClientManager.getZNodeStats("/" + deviceId) == null)
+                            zooKeeperClientManager.create("/" + deviceId, new byte[]{(byte) 1});
+                        String[] parts = getParts(path);
+                        for (String part : parts) {
+                            if (zooKeeperClientManager.getZNodeStats("/" + deviceId + "/" + part) == null)
+                                zooKeeperClientManager.create("/" + deviceId + "/" + part, new byte[]{(byte) 1});
                         }
                     }
-                } else {
-                    devices.add(deviceId);
-                    try {
-                        out = new ObjectOutputStream(bos);
-                        out.writeObject(devices);
-                        out.flush();
-                        byte[] bytes = bos.toByteArray();
-                        zooKeeperClientManager.update("/" + path, bytes);
-                    } finally {
-                        try {
-                            bos.close();
-                        } catch (IOException ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-                }
                 zooKeeperClientManager.closeConnection();
-                return path;
+                return "http://" + services[0];
             } catch (KeeperException e) {
                 //TODO catch according to Zookeeper exception code
                 e.printStackTrace();
             } catch (InterruptedException e) {
                 e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
         return null;
+    }
+
+
+    private String[] getParts(String path) {
+        String[] sections = path.split("/");
+        String[] parts = new String[sections.length];
+        parts[0] = sections[0];
+        for (int i = 1; i < sections.length; i++) {
+            parts[i] = parts[i - 1] + "/" + sections[i];
+        }
+        return parts;
     }
 
 }
