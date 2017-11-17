@@ -3,10 +3,7 @@ package com.camendoza94.zoo;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.zookeeper.KeeperException;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -14,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 import javax.management.ServiceNotFoundException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/zoo")
@@ -26,25 +24,42 @@ class ZooKeeperController {
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) {
-        String URL = null;
-        try {
-            URL = triggerMatching(observation.getDeviceId());
-        } catch (ServiceNotFoundException e) {
-            //TODO No Matching
-        }
+        String id = observation.getDeviceId();
         JsonParser parser = new JsonParser();
         JsonObject body = parser.parse(observation.getPayload()).getAsJsonObject();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
-        //TODO Catch 5xx
-        return template.postForEntity(URL, entity, String.class);
+        try {
+            List<String> children = zooKeeperClientManager.getZNodeChildren("/" + id);
+            if (children == null) {
+                triggerMatching(id);
+                children = zooKeeperClientManager.getZNodeChildren("/" + id);
+            }
+            if (children != null) {
+                for (String child : children) {
+                    //TODO get path recursively?
+                    //TODO Check if node is available
+                    ResponseEntity<String> request = template.postForEntity(child, entity, String.class);
+                    if (request.getStatusCode().is2xxSuccessful())
+                        return request;
+                    else {
+                        //TODO Change to unavailable
+                    }
+                }
+            }
+        } catch (KeeperException | InterruptedException e) {
+            e.printStackTrace();
+        } catch (ServiceNotFoundException e) {
+            return ResponseEntity.badRequest().body("Could not find a matching service.");
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Services are not available.");
     }
 
     /*
         Trigger semantic matching when ZooKeeper does not find a corresponding znode
      */
-    private String triggerMatching(String deviceId) throws ServiceNotFoundException {
+    private void triggerMatching(String deviceId) throws ServiceNotFoundException {
         ResponseEntity<String> response = template.postForEntity(SEMANTIC_INTERFACE_HOST + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
         if (response.getStatusCode().is2xxSuccessful()) {
             String paths = response.getBody();
@@ -64,15 +79,11 @@ class ZooKeeperController {
                         }
                     }
                 zooKeeperClientManager.closeConnection();
-                return "http://" + services[0];
-            } catch (KeeperException e) {
-                //TODO catch according to Zookeeper exception code
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (KeeperException | InterruptedException e) {
                 e.printStackTrace();
             }
-        }
-        return null;
+        } else if (response.getStatusCode().is4xxClientError())
+            throw new ServiceNotFoundException();
     }
 
 
