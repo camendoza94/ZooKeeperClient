@@ -100,7 +100,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
                 connectedSignal.countDown();
                 return data;
             } else {
-                System.out.println("Node does not exists");
+                System.out.println("Node does not exist");
                 return -1;
             }
         } catch (Exception e) {

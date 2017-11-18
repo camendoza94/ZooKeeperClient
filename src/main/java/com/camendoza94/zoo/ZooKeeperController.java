@@ -24,11 +24,12 @@ class ZooKeeperController {
     private final RestTemplate template = new RestTemplate();
     private static final String SEMANTIC_INTERFACE_HOST = "http://localhost:1234";
     private static final String SEMANTIC_INTERFACE_PATH = "/interface";
+    private static final String BASE_PATH = "semanticInterface";
     private ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) {
-        ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
+        zooKeeperClientManager = new ZooKeeperClientManager();
         String id = observation.getDeviceId();
         JsonParser parser = new JsonParser();
         JsonObject body = parser.parse(observation.getPayload()).getAsJsonObject();
@@ -36,10 +37,10 @@ class ZooKeeperController {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
         try {
-            List<String> children = zooKeeperClientManager.getZNodeTree(id);
+            List<String> children = zooKeeperClientManager.getZNodeTree(BASE_PATH + "/" + id);
             if (children.size() == 1 && obtainURL(children.get(0)).equals(NO_SERVICE)) {
                 triggerMatching(id);
-                children = zooKeeperClientManager.getZNodeTree(id);
+                children = zooKeeperClientManager.getZNodeTree(BASE_PATH + "/" + id);
             }
             if (children.size() > 1 || !obtainURL(children.get(0)).equals(NO_SERVICE)) {
                 for (String child : children) {
@@ -66,7 +67,7 @@ class ZooKeeperController {
     }
 
     private String obtainURL(String path) {
-        int start = path.indexOf("/", 1);
+        int start = path.indexOf("/", BASE_PATH.length() + 2);
         if (start != -1)
             return path.substring(start + 1);
         else
@@ -86,17 +87,19 @@ class ZooKeeperController {
                 try {
                     //TODO use multi() to create paths
                     String[] services = paths.split("\n");
-                    for (String path : services)
+                    for (String path : services) {
                         if (!path.isEmpty()) {
-                            if (zooKeeperClientManager.getZNodeStats("/" + deviceId) == null)
-                                zooKeeperClientManager.create("/" + deviceId, new byte[]{(byte) 1});
+                            if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH) == null)
+                                zooKeeperClientManager.create("/" + BASE_PATH, new byte[]{(byte) 1});
+                            if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceId) == null)
+                                zooKeeperClientManager.create("/" + BASE_PATH + "/" + deviceId, new byte[]{(byte) 1});
                             String[] parts = getParts(path);
                             for (String part : parts) {
-                                if (zooKeeperClientManager.getZNodeStats("/" + deviceId + "/" + part) == null)
-                                    zooKeeperClientManager.create("/" + deviceId + "/" + part, new byte[]{(byte) 1});
+                                if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceId + "/" + part) == null)
+                                    zooKeeperClientManager.create("/" + BASE_PATH + "/" + deviceId + "/" + part, new byte[]{(byte) 1});
                             }
                         }
-                    zooKeeperClientManager.closeConnection();
+                    }
                 } catch (KeeperException | InterruptedException e) {
                     e.printStackTrace();
                 }
