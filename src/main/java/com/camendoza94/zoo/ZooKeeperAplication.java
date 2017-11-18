@@ -10,5 +10,6 @@ public class ZooKeeperAplication {
 
     public static void main(String[] args) {
         SpringApplication.run(ZooKeeperAplication.class, args);
+        DirectoryHealthCheck.startHealthCheckJob();
     }
 }

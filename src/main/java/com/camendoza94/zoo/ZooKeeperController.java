@@ -24,12 +24,11 @@ class ZooKeeperController {
     private final RestTemplate template = new RestTemplate();
     private static final String SEMANTIC_INTERFACE_HOST = "http://localhost:1234";
     private static final String SEMANTIC_INTERFACE_PATH = "/interface";
-    private static final String BASE_PATH = "semanticInterface";
+    public static final String BASE_PATH = "semanticInterface";
     private ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) {
-        zooKeeperClientManager = new ZooKeeperClientManager();
         String id = observation.getDeviceId();
         JsonParser parser = new JsonParser();
         JsonObject body = parser.parse(observation.getPayload()).getAsJsonObject();
@@ -63,7 +62,7 @@ class ZooKeeperController {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Services are not available.");
     }
 
-    private String obtainURL(String path) {
+    private static String obtainURL(String path) {
         int start = path.indexOf("/", BASE_PATH.length() + 2);
         if (start != -1)
             return path.substring(start + 1);
