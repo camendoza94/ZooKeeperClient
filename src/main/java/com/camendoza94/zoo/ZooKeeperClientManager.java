@@ -157,4 +157,8 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
         zooKeeper.delete(path, version);
 
     }
+
+    void multi(List<Op> ops) throws KeeperException, InterruptedException {
+        zooKeeper.multi(ops);
+    }
 }

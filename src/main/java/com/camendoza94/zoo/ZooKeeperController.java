@@ -2,7 +2,10 @@ package com.camendoza94.zoo;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.ZooDefs;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +16,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.management.ServiceNotFoundException;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -81,19 +85,20 @@ public class ZooKeeperController {
                 if (paths.equals(SERVICE_NOT_FOUND))
                     throw new ServiceNotFoundException();
                 try {
-                    //TODO use multi() to create paths
                     String[] services = paths.split("\n");
                     for (String path : services) {
                         if (!path.isEmpty()) {
+                            List<Op> ops = new ArrayList<>();
                             if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH) == null)
-                                zooKeeperClientManager.create("/" + BASE_PATH, new byte[]{(byte) 1});
+                                ops.add(Op.create("/" + BASE_PATH, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
                             if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceId) == null)
-                                zooKeeperClientManager.create("/" + BASE_PATH + "/" + deviceId, new byte[]{(byte) 1});
+                                ops.add(Op.create("/" + BASE_PATH + "/" + deviceId, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
                             String[] parts = getParts(path);
                             for (String part : parts) {
                                 if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceId + "/" + part) == null)
-                                    zooKeeperClientManager.create("/" + BASE_PATH + "/" + deviceId + "/" + part, new byte[]{(byte) 1});
+                                    ops.add(Op.create("/" + BASE_PATH + "/" + deviceId + "/" + part, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
                             }
+                            zooKeeperClientManager.multi(ops);
                         }
                     }
                 } catch (KeeperException | InterruptedException e) {
