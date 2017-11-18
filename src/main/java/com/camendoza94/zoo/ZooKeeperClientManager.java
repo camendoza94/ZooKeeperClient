@@ -3,6 +3,7 @@ package com.camendoza94.zoo;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -24,7 +25,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
             zooKeeper = zooKeeperConnection.connect("localhost");
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -33,7 +34,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
         try {
             zooKeeperConnection.close();
         } catch (InterruptedException e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -53,13 +54,13 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
             System.out.println("Node exists and the node version is "
                     + stat.getVersion());
         } else {
-            System.out.println("Node does not exists");
+            System.out.println("Node does not exist");
         }
         return stat;
     }
 
     @Override
-    public Object getZNodeData(String path, boolean watchFlag) throws KeeperException,
+    public int getZNodeData(String path, boolean watchFlag) throws KeeperException,
             InterruptedException {
         final CountDownLatch connectedSignal = new CountDownLatch(1);
         try {
@@ -67,6 +68,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
             byte[] b;
             if (stat != null) {
                 if (watchFlag) {
+                    connectedSignal.await();
                     b = zooKeeper.getData(path, we -> {
 
                         if (we.getType() == Watcher.Event.EventType.None) {
@@ -76,18 +78,16 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
                                     break;
                             }
                         } else {
-                            String path1 = "/MyFirstZnode";
 
                             try {
-                                byte[] bn = zooKeeper.getData(path1,
+                                byte[] bn = zooKeeper.getData(path,
                                         false, null);
-                                String data = new String(bn,
-                                        "UTF-8");
+                                Integer data = (int) bn[0];
                                 System.out.println(data);
                                 connectedSignal.countDown();
 
                             } catch (Exception ex) {
-                                System.out.println(ex.getMessage());
+                                ex.printStackTrace();
                             }
                         }
                     }, null);
@@ -95,18 +95,18 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
                     b = zooKeeper.getData(path, null, null);
                 }
 
-                String data = new String(b, "UTF-8");
+                Integer data = (int) b[0];
                 System.out.println(data);
-                connectedSignal.await();
+                connectedSignal.countDown();
                 return data;
             } else {
                 System.out.println("Node does not exists");
-                return null;
+                return -1;
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         }
-        return null;
+        return -1;
     }
 
     @Override
@@ -120,7 +120,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
     public List<String> getZNodeChildren(String path) throws KeeperException,
             InterruptedException {
         Stat stat = getZNodeStats(path);
-        List<String> children = null;
+        List<String> children = new ArrayList<>();
 
         if (stat != null) {
             children = zooKeeper.getChildren(path, false);
@@ -130,6 +130,25 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
             System.out.println("Node does not exists");
         }
         return children;
+    }
+
+    List<String> getZNodeTree(String root) throws KeeperException, InterruptedException {
+        List<String> paths = new ArrayList<>();
+        traverseTree(root, "", paths);
+        return paths;
+    }
+
+    private void traverseTree(String root, String path, List<String> paths) throws KeeperException, InterruptedException {
+        path += "/" + root;
+
+        List<String> children = getZNodeChildren(path);
+        if (children.isEmpty()) {
+            paths.add(path);
+        } else {
+            for (String child : children) {
+                traverseTree(child, path, paths);
+            }
+        }
     }
 
     @Override

@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.management.ServiceNotFoundException;
@@ -17,13 +19,16 @@ import java.util.List;
 @RequestMapping("/zoo")
 class ZooKeeperController {
 
+    private static final String NO_SERVICE = "No service";
+    private static final String SERVICE_NOT_FOUND = "Service not found";
     private final RestTemplate template = new RestTemplate();
-    private final ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
     private static final String SEMANTIC_INTERFACE_HOST = "http://localhost:1234";
     private static final String SEMANTIC_INTERFACE_PATH = "/interface";
+    private ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) {
+        ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
         String id = observation.getDeviceId();
         JsonParser parser = new JsonParser();
         JsonObject body = parser.parse(observation.getPayload()).getAsJsonObject();
@@ -31,19 +36,20 @@ class ZooKeeperController {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
         try {
-            List<String> children = zooKeeperClientManager.getZNodeChildren("/" + id);
-            if (children.isEmpty()) {
+            List<String> children = zooKeeperClientManager.getZNodeTree(id);
+            if (children.size() == 1 && obtainURL(children.get(0)).equals(NO_SERVICE)) {
                 triggerMatching(id);
-                children = zooKeeperClientManager.getZNodeChildren("/" + id);
+                children = zooKeeperClientManager.getZNodeTree(id);
             }
-            if (children != null) {
+            if (children.size() > 1 || !obtainURL(children.get(0)).equals(NO_SERVICE)) {
                 for (String child : children) {
-                    //TODO get path recursively?
                     if (zooKeeperClientManager.getZNodeData(child, false) == 1) {
-                        ResponseEntity<String> request = template.postForEntity(child, entity, String.class);
-                        if (request.getStatusCode().is2xxSuccessful())
+                        String URL = obtainURL(child);
+                        ResponseEntity<String> request = template.postForEntity("http://" + URL, entity, String.class);
+                        if (request.getStatusCode().is2xxSuccessful()) {
+                            zooKeeperClientManager.closeConnection();
                             return request;
-                        else {
+                        } else {
                             zooKeeperClientManager.update(child, new byte[]{(byte) 0});
                         }
                     }
@@ -53,38 +59,54 @@ class ZooKeeperController {
             e.printStackTrace();
         } catch (ServiceNotFoundException e) {
             return ResponseEntity.badRequest().body("Could not find a matching service.");
+        } finally {
+            zooKeeperClientManager.closeConnection();
         }
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Services are not available.");
+    }
+
+    private String obtainURL(String path) {
+        int start = path.indexOf("/", 1);
+        if (start != -1)
+            return path.substring(start + 1);
+        else
+            return NO_SERVICE;
     }
 
     /*
         Trigger semantic matching when ZooKeeper does not find a corresponding znode
      */
     private void triggerMatching(String deviceId) throws ServiceNotFoundException {
-        ResponseEntity<String> response = template.postForEntity(SEMANTIC_INTERFACE_HOST + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
-        if (response.getStatusCode().is2xxSuccessful()) {
-            String paths = response.getBody();
-            if (paths.isEmpty())
-                throw new ServiceNotFoundException();
-            try {
-                //TODO use multi() to create paths
-                String[] services = paths.split("\n");
-                for (String path : services)
-                    if (!path.isEmpty()) {
-                        if (zooKeeperClientManager.getZNodeStats("/" + deviceId) == null)
-                            zooKeeperClientManager.create("/" + deviceId, new byte[]{(byte) 1});
-                        String[] parts = getParts(path);
-                        for (String part : parts) {
-                            if (zooKeeperClientManager.getZNodeStats("/" + deviceId + "/" + part) == null)
-                                zooKeeperClientManager.create("/" + deviceId + "/" + part, new byte[]{(byte) 1});
+        try {
+            ResponseEntity<String> response = template.postForEntity(SEMANTIC_INTERFACE_HOST + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                String paths = response.getBody();
+                if (paths.equals(SERVICE_NOT_FOUND))
+                    throw new ServiceNotFoundException();
+                try {
+                    //TODO use multi() to create paths
+                    String[] services = paths.split("\n");
+                    for (String path : services)
+                        if (!path.isEmpty()) {
+                            if (zooKeeperClientManager.getZNodeStats("/" + deviceId) == null)
+                                zooKeeperClientManager.create("/" + deviceId, new byte[]{(byte) 1});
+                            String[] parts = getParts(path);
+                            for (String part : parts) {
+                                if (zooKeeperClientManager.getZNodeStats("/" + deviceId + "/" + part) == null)
+                                    zooKeeperClientManager.create("/" + deviceId + "/" + part, new byte[]{(byte) 1});
+                            }
                         }
-                    }
-                zooKeeperClientManager.closeConnection();
-            } catch (KeeperException | InterruptedException e) {
-                e.printStackTrace();
+                    zooKeeperClientManager.closeConnection();
+                } catch (KeeperException | InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-        } else if (response.getStatusCode().is4xxClientError())
+        } catch (HttpClientErrorException e) {
             throw new ServiceNotFoundException();
+        } catch (HttpServerErrorException e) {
+            throw new ServiceNotFoundException(); //TODO Change to another exception
+        }
+
     }
 
 
