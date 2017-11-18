@@ -11,8 +11,6 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
 
     private static ZooKeeper zooKeeper;
 
-    private static ZooKeeperConnection zooKeeperConnection;
-
 
     public ZooKeeperClientManager() {
         initialize();

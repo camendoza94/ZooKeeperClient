@@ -21,7 +21,7 @@ public class DirectoryHealthCheck implements Job {
     private static final Integer HEALTH_CHECK_FREQUENCY_SECONDS = 90;
     private static final String HEALTH = "/health";
     private static final String UP = "UP";
-    private ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
+    private final ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
 
     @Override
     public void execute(JobExecutionContext jec) throws JobExecutionException {

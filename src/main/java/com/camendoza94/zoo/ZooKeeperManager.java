@@ -5,7 +5,7 @@ import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
 
-public interface ZooKeeperManager {
+interface ZooKeeperManager {
     /**
      * Create a Znode and save some data
      */

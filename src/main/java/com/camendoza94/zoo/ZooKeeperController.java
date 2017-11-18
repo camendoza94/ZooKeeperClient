@@ -16,8 +16,12 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.management.ServiceNotFoundException;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 @RestController
 @RequestMapping("/zoo")
@@ -26,10 +30,11 @@ public class ZooKeeperController {
     private static final String NO_SERVICE = "No service";
     private static final String SERVICE_NOT_FOUND = "Service not found";
     private final RestTemplate template = new RestTemplate();
-    private static final String SEMANTIC_INTERFACE_HOST = "http://localhost:1234";
-    private static final String SEMANTIC_INTERFACE_PATH = "/interface";
+    private static String SEMANTIC_INTERFACE_HOST;
+    private static String SEMANTIC_INTERFACE_PATH;
+    private static String SEMANTIC_INTERFACE_PORT;
     public static final String BASE_PATH = "semanticInterface";
-    private ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
+    private final ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) {
@@ -79,7 +84,22 @@ public class ZooKeeperController {
      */
     private void triggerMatching(String deviceId) throws ServiceNotFoundException {
         try {
-            ResponseEntity<String> response = template.postForEntity(SEMANTIC_INTERFACE_HOST + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
+            if (SEMANTIC_INTERFACE_HOST == null || SEMANTIC_INTERFACE_PATH == null || SEMANTIC_INTERFACE_PORT == null) {
+
+                Properties prop = new Properties();
+                InputStream input;
+                try {
+
+                    input = new FileInputStream("./src/main/resources/semantic.properties");
+                    prop.load(input);
+                    SEMANTIC_INTERFACE_HOST = prop.getProperty("server.host");
+                    SEMANTIC_INTERFACE_PORT = prop.getProperty("server.port");
+                    SEMANTIC_INTERFACE_PATH = prop.getProperty("server.path");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            ResponseEntity<String> response = template.postForEntity("http://" + SEMANTIC_INTERFACE_HOST + ":" + SEMANTIC_INTERFACE_PORT + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
                 String paths = response.getBody();
                 if (paths.equals(SERVICE_NOT_FOUND))

@@ -1,6 +1,6 @@
 package com.camendoza94.healtcheck;
 
-public class ServiceHealth {
+class ServiceHealth {
     private String status;
 
     public String getStatus() {
