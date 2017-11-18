@@ -14,7 +14,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
     private static ZooKeeperConnection zooKeeperConnection;
 
 
-    ZooKeeperClientManager() {
+    public ZooKeeperClientManager() {
         initialize();
     }
 
@@ -131,7 +131,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
         return children;
     }
 
-    List<String> getZNodeTree(String root) throws KeeperException, InterruptedException {
+    public List<String> getZNodeTree(String root) throws KeeperException, InterruptedException {
         List<String> paths = new ArrayList<>();
         traverseTree(root, "", paths);
         return paths;

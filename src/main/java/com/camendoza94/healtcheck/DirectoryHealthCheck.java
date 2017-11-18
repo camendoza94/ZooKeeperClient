@@ -1,5 +1,6 @@
-package com.camendoza94.zoo;
+package com.camendoza94.healtcheck;
 
+import com.camendoza94.zoo.ZooKeeperClientManager;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 import org.springframework.http.ResponseEntity;
@@ -31,11 +32,16 @@ public class DirectoryHealthCheck implements Job {
             for (String child : children) {
                 String URL = "http://" + obtainBaseEndpoint(child);
                 URL += HEALTH;
-                ResponseEntity<ServiceHealth> response = template.getForEntity(URL, ServiceHealth.class);
-                if (UP.equals(response.getBody().getStatus()))
-                    zooKeeperClientManager.update(child, new byte[]{(byte) 1});
-                else
+                try {
+                    ResponseEntity<ServiceHealth> response = template.getForEntity(URL, ServiceHealth.class);
+                    if (UP.equals(response.getBody().getStatus()))
+                        zooKeeperClientManager.update(child, new byte[]{(byte) 1});
+                    else
+                        zooKeeperClientManager.update(child, new byte[]{(byte) 0});
+                } catch (Exception e) {
+                    //Server is down or could not complete request correctly
                     zooKeeperClientManager.update(child, new byte[]{(byte) 0});
+                }
             }
             System.out.println("ServiceHealth Check Done");
         } catch (Exception ex) {
@@ -55,7 +61,7 @@ public class DirectoryHealthCheck implements Job {
     }
 
 
-    static void startHealthCheckJob() {
+    public static void startHealthCheckJob() {
         try {
             // Grab the Scheduler instance from the Factory
             Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();

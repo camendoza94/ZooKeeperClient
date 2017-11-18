@@ -1,4 +1,4 @@
-package com.camendoza94.zoo;
+package com.camendoza94.healtcheck;
 
 public class ServiceHealth {
     private String status;

@@ -17,7 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/zoo")
-class ZooKeeperController {
+public class ZooKeeperController {
 
     private static final String NO_SERVICE = "No service";
     private static final String SERVICE_NOT_FOUND = "Service not found";
@@ -45,10 +45,10 @@ class ZooKeeperController {
                 for (String child : children) {
                     if (zooKeeperClientManager.getZNodeData(child, false) == 1) {
                         String URL = obtainURL(child);
-                        ResponseEntity<String> request = template.postForEntity("http://" + URL, entity, String.class);
-                        if (request.getStatusCode().is2xxSuccessful()) {
-                            return request;
-                        } else {
+                        try {
+                            return template.postForEntity("http://" + URL, entity, String.class);
+                        } catch (Exception e) {
+                            //Server is down or could not complete request correctly
                             zooKeeperClientManager.update(child, new byte[]{(byte) 0});
                         }
                     }
