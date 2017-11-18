@@ -6,10 +6,10 @@
  */
 package com.camendoza94.zoo;
 
-import java.util.List;
-
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
+
+import java.util.List;
 
 public interface ZooKeeperManager {
     /**
@@ -27,7 +27,7 @@ public interface ZooKeeperManager {
     /**
      * Get ZNode Data
      */
-    Object getZNodeData(String path,boolean watchFlag) throws KeeperException,
+    int getZNodeData(String path,boolean watchFlag) throws KeeperException,
             InterruptedException;
 
     /**

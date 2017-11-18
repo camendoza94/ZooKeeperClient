@@ -32,19 +32,20 @@ class ZooKeeperController {
         HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
         try {
             List<String> children = zooKeeperClientManager.getZNodeChildren("/" + id);
-            if (children == null) {
+            if (children.isEmpty()) {
                 triggerMatching(id);
                 children = zooKeeperClientManager.getZNodeChildren("/" + id);
             }
             if (children != null) {
                 for (String child : children) {
                     //TODO get path recursively?
-                    //TODO Check if node is available
-                    ResponseEntity<String> request = template.postForEntity(child, entity, String.class);
-                    if (request.getStatusCode().is2xxSuccessful())
-                        return request;
-                    else {
-                        //TODO Change to unavailable
+                    if (zooKeeperClientManager.getZNodeData(child, false) == 1) {
+                        ResponseEntity<String> request = template.postForEntity(child, entity, String.class);
+                        if (request.getStatusCode().is2xxSuccessful())
+                            return request;
+                        else {
+                            zooKeeperClientManager.update(child, new byte[]{(byte) 0});
+                        }
                     }
                 }
             }

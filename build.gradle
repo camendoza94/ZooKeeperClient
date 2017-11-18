@@ -37,5 +37,7 @@ dependencies {
     compile 'org.springframework:spring-web'
     compile 'org.springframework.cloud:spring-cloud-starter-zookeeper-discovery'
     compile 'com.google.code.gson:gson:2.8.2'
+    compile 'org.quartz-scheduler:quartz:2.2.1'
+    compile 'org.quartz-scheduler:quartz-jobs:2.2.1'
     testCompile 'org.springframework.boot:spring-boot-starter-test'
 }
