@@ -10,26 +10,37 @@ import java.util.concurrent.CountDownLatch;
 class ZooKeeperConnection {
 
     // Local Zookeeper object to access ZooKeeper ensemble
-    private ZooKeeper zoo;
+    private static ZooKeeper zoo;
     private final CountDownLatch connectionLatch = new CountDownLatch(1);
 
     // Initialize the Zookeeper connection
-    ZooKeeper connect(String host) throws IOException,
-            InterruptedException {
+    private ZooKeeperConnection() {
 
-        zoo = new ZooKeeper(host, 6000, we -> {
+        try {
+            zoo = new ZooKeeper("localhost", 6000, we -> {
 
-            if (we.getState() == KeeperState.SyncConnected) {
-                connectionLatch.countDown();
-            }
-        });
+                if (we.getState() == KeeperState.SyncConnected) {
+                    connectionLatch.countDown();
+                }
+            });
+            connectionLatch.await();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
-        connectionLatch.await();
+    }
+
+    static ZooKeeper getZookeeperClient() {
+        if (zoo == null) {
+            new ZooKeeperConnection();
+        }
         return zoo;
     }
 
     // Method to disconnect from zookeeper server
-    void close() throws InterruptedException {
+    static void close() throws InterruptedException {
         zoo.close();
     }
 

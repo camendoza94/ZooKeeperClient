@@ -21,8 +21,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
 
     private void initialize() {
         try {
-            zooKeeperConnection = new ZooKeeperConnection();
-            zooKeeper = zooKeeperConnection.connect("localhost");
+            zooKeeper = ZooKeeperConnection.getZookeeperClient();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -32,7 +31,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
 
     void closeConnection() {
         try {
-            zooKeeperConnection.close();
+            ZooKeeperConnection.close();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

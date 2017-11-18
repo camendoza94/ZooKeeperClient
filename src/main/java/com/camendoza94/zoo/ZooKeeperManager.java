@@ -1,9 +1,3 @@
-/*
- * @(#)ZKManager.java
- * @author Binu George
- * Globinch.com
- * copyright http://www.java.globinch.com. All rights reserved.
- */
 package com.camendoza94.zoo;
 
 import org.apache.zookeeper.KeeperException;

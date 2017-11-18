@@ -48,7 +48,6 @@ class ZooKeeperController {
                         String URL = obtainURL(child);
                         ResponseEntity<String> request = template.postForEntity("http://" + URL, entity, String.class);
                         if (request.getStatusCode().is2xxSuccessful()) {
-                            zooKeeperClientManager.closeConnection();
                             return request;
                         } else {
                             zooKeeperClientManager.update(child, new byte[]{(byte) 0});
@@ -60,8 +59,6 @@ class ZooKeeperController {
             e.printStackTrace();
         } catch (ServiceNotFoundException e) {
             return ResponseEntity.badRequest().body("Could not find a matching service.");
-        } finally {
-            zooKeeperClientManager.closeConnection();
         }
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Services are not available.");
     }
