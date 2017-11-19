@@ -52,6 +52,8 @@ public class DirectoryHealthCheck implements Job {
 
     private static String obtainBaseEndpoint(String path) throws ServiceNotFoundException {
         int start = path.indexOf("/", BASE_PATH.length() + 2);
+        System.out.println(path);
+        //TODO Manage no services on Zookeeper
         if (start != -1) {
             int end = path.indexOf("/", start + 1);
             if (end != -1)

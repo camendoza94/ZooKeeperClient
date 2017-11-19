@@ -50,9 +50,10 @@ class ZooKeeperConnection {
 
 
     static ZooKeeper getZookeeperClient() {
-        if (zoo == null) {
+        if (zoo == null || !zoo.getState().isAlive() ) {
             new ZooKeeperConnection();
         }
+
         return zoo;
     }
 

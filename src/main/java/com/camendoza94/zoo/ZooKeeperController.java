@@ -1,5 +1,8 @@
 package com.camendoza94.zoo;
 
+import com.camendoza94.exceptions.NoMatchesFoundException;
+import com.camendoza94.exceptions.ServiceNotFoundInOntologyException;
+import com.camendoza94.exceptions.ServicesNotAvailableException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.zookeeper.CreateMode;
@@ -7,15 +10,13 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Op;
 import org.apache.zookeeper.ZooDefs;
 import org.springframework.http.*;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import javax.management.ServiceNotFoundException;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.WebApplicationException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,16 +29,16 @@ import java.util.Properties;
 public class ZooKeeperController {
 
     private static final String NO_SERVICE = "No service";
-    private static final String SERVICE_NOT_FOUND = "Service not found";
     private final RestTemplate template = new RestTemplate();
     private static String SEMANTIC_INTERFACE_HOST;
     private static String SEMANTIC_INTERFACE_PATH;
     private static String SEMANTIC_INTERFACE_PORT;
     public static final String BASE_PATH = "semanticInterface";
-    private final ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
+    private ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
 
     @RequestMapping(method = RequestMethod.POST)
-    ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) {
+    ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) throws ServiceNotFoundInOntologyException, NoMatchesFoundException, ServicesNotAvailableException {
+        zooKeeperClientManager = new ZooKeeperClientManager();
         String id = observation.getDeviceId();
         JsonParser parser = new JsonParser();
         JsonObject body = parser.parse(observation.getPayload()).getAsJsonObject();
@@ -55,6 +56,7 @@ public class ZooKeeperController {
                     if (zooKeeperClientManager.getZNodeData(child, false) == 1) {
                         String URL = obtainURL(child);
                         try {
+                            zooKeeperClientManager.closeConnection();
                             return template.postForEntity("http://" + URL, entity, String.class);
                         } catch (Exception e) {
                             //Server is down or could not complete request correctly
@@ -64,11 +66,13 @@ public class ZooKeeperController {
                 }
             }
         } catch (KeeperException | InterruptedException e) {
-            e.printStackTrace();
-        } catch (ServiceNotFoundException e) {
-            return ResponseEntity.badRequest().body("Could not find a matching service.");
+            zooKeeperClientManager.closeConnection();
+        } catch (ServiceNotFoundInOntologyException | NoMatchesFoundException e) {
+            zooKeeperClientManager.closeConnection();
+            throw e;
         }
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Services are not available.");
+        zooKeeperClientManager.closeConnection();
+        throw new ServicesNotAvailableException();
     }
 
     private static String obtainURL(String path) {
@@ -82,7 +86,7 @@ public class ZooKeeperController {
     /*
         Trigger semantic matching when ZooKeeper does not find a corresponding znode
      */
-    private void triggerMatching(String deviceId) throws ServiceNotFoundException {
+    private void triggerMatching(String deviceId) throws NoMatchesFoundException, ServiceNotFoundInOntologyException {
         try {
             if (SEMANTIC_INTERFACE_HOST == null || SEMANTIC_INTERFACE_PATH == null || SEMANTIC_INTERFACE_PORT == null) {
 
@@ -102,8 +106,6 @@ public class ZooKeeperController {
             ResponseEntity<String> response = template.postForEntity("http://" + SEMANTIC_INTERFACE_HOST + ":" + SEMANTIC_INTERFACE_PORT + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
                 String paths = response.getBody();
-                if (paths.equals(SERVICE_NOT_FOUND))
-                    throw new ServiceNotFoundException();
                 try {
                     String[] services = paths.split("\n");
                     for (String path : services) {
@@ -125,14 +127,15 @@ public class ZooKeeperController {
                     e.printStackTrace();
                 }
             }
-        } catch (HttpClientErrorException e) {
-            throw new ServiceNotFoundException();
-        } catch (HttpServerErrorException e) {
-            throw new ServiceNotFoundException(); //TODO Change to another exception
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            if(e.getStatusCode().equals(HttpStatus.PRECONDITION_FAILED))
+                throw new NoMatchesFoundException();
+            else if(e.getStatusCode().equals(HttpStatus.SERVICE_UNAVAILABLE))
+                throw  new ServiceNotFoundInOntologyException();
+            throw new WebApplicationException();
         }
 
     }
-
 
     private String[] getParts(String path) {
         String[] sections = path.split("/");
@@ -142,6 +145,21 @@ public class ZooKeeperController {
             parts[i] = parts[i - 1] + "/" + sections[i];
         }
         return parts;
+    }
+
+    @ExceptionHandler
+    void handleDeviceNotFoundException(NoMatchesFoundException e, HttpServletResponse response) throws IOException {
+        response.sendError(HttpStatus.PRECONDITION_FAILED.value());
+    }
+
+    @ExceptionHandler
+    void handleServiceNotFoundException(ServiceNotFoundInOntologyException e, HttpServletResponse response) throws IOException {
+        response.sendError(HttpStatus.SERVICE_UNAVAILABLE.value());
+    }
+
+    @ExceptionHandler
+    void handleServicesNotAvailableException(ServicesNotAvailableException e, HttpServletResponse response) throws IOException {
+        response.sendError(HttpStatus.SERVICE_UNAVAILABLE.value());
     }
 
 }
