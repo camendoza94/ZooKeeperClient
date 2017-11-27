@@ -3,7 +3,6 @@ package com.camendoza94.healtcheck;
 import com.camendoza94.zoo.ZooKeeperClientManager;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -17,7 +16,7 @@ import static org.quartz.TriggerBuilder.newTrigger;
 
 public class DirectoryHealthCheck implements Job {
 
-    private static final Integer HEALTH_CHECK_FREQUENCY_SECONDS = 30;
+    private static final Integer HEALTH_CHECK_FREQUENCY_SECONDS = 90;
     private static final String HEALTH = "/health";
     private static final String UP = "UP";
     private final ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
@@ -32,8 +31,8 @@ public class DirectoryHealthCheck implements Job {
                 String URL = "http://" + obtainBaseEndpoint(child);
                 URL += HEALTH;
                 try {
-                    ResponseEntity<ServiceHealth> response = template.getForEntity(URL, ServiceHealth.class);
-                    if (UP.equals(response.getBody().getStatus()))
+                    ServiceHealth response = template.getForObject(URL, ServiceHealth.class);
+                    if (UP.equals(response.getStatus()))
                         zooKeeperClientManager.update(child, new byte[]{(byte) 1});
                     else
                         zooKeeperClientManager.update(child, new byte[]{(byte) 0});

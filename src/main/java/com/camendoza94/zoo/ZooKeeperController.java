@@ -58,8 +58,14 @@ public class ZooKeeperController {
                         try {
                             zooKeeperClientManager.closeConnection();
                             return template.postForEntity("http://" + URL, entity, String.class);
+                        } catch (HttpClientErrorException e) {
+                            //Service returns a Bad Request response, so we assume the service is not compatible and delete the child
+                            if (e.getStatusCode().equals(HttpStatus.BAD_REQUEST))
+                                zooKeeperClientManager.delete(child);
+                            else
+                                zooKeeperClientManager.update(child, new byte[]{(byte) 0});
                         } catch (Exception e) {
-                            //Server is down or could not complete request correctly
+                            //Service is down or could not complete request correctly
                             zooKeeperClientManager.update(child, new byte[]{(byte) 0});
                         }
                     }
@@ -128,10 +134,10 @@ public class ZooKeeperController {
                 }
             }
         } catch (HttpClientErrorException | HttpServerErrorException e) {
-            if(e.getStatusCode().equals(HttpStatus.PRECONDITION_FAILED))
+            if (e.getStatusCode().equals(HttpStatus.PRECONDITION_FAILED))
                 throw new NoMatchesFoundException();
-            else if(e.getStatusCode().equals(HttpStatus.SERVICE_UNAVAILABLE))
-                throw  new ServiceNotFoundInOntologyException();
+            else if (e.getStatusCode().equals(HttpStatus.SERVICE_UNAVAILABLE))
+                throw new ServiceNotFoundInOntologyException();
             throw new WebApplicationException();
         }
 
