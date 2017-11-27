@@ -4,18 +4,18 @@ class DeviceObservation {
 
     private String payload;
 
-    private String deviceId;
+    private String deviceReference;
 
-    String getDeviceId() {
-        return deviceId;
+    String getDeviceReference() {
+        return deviceReference;
     }
 
     String getPayload() {
         return payload;
     }
 
-    public void setDeviceId(String deviceId) {
-        this.deviceId = deviceId;
+    public void setDeviceReference(String deviceReference) {
+        this.deviceReference = deviceReference;
     }
 
     public void setPayload(String payload) {

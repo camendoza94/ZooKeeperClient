@@ -39,17 +39,17 @@ public class ZooKeeperController {
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<String> requestService(@RequestBody DeviceObservation observation) throws ServiceNotFoundInOntologyException, NoMatchesFoundException, ServicesNotAvailableException {
         zooKeeperClientManager = new ZooKeeperClientManager();
-        String id = observation.getDeviceId();
+        String reference = observation.getDeviceReference();
         JsonParser parser = new JsonParser();
         JsonObject body = parser.parse(observation.getPayload()).getAsJsonObject();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(body.toString(), headers);
         try {
-            List<String> children = zooKeeperClientManager.getZNodeTree(BASE_PATH + "/" + id);
+            List<String> children = zooKeeperClientManager.getZNodeTree(BASE_PATH + "/" + reference);
             if (children.size() == 1 && obtainURL(children.get(0)).equals(NO_SERVICE)) {
-                triggerMatching(id);
-                children = zooKeeperClientManager.getZNodeTree(BASE_PATH + "/" + id);
+                triggerMatching(reference);
+                children = zooKeeperClientManager.getZNodeTree(BASE_PATH + "/" + reference);
             }
             if (children.size() > 1 || !obtainURL(children.get(0)).equals(NO_SERVICE)) {
                 for (String child : children) {
@@ -86,7 +86,7 @@ public class ZooKeeperController {
     /*
         Trigger semantic matching when ZooKeeper does not find a corresponding znode
      */
-    private void triggerMatching(String deviceId) throws NoMatchesFoundException, ServiceNotFoundInOntologyException {
+    private void triggerMatching(String deviceReference) throws NoMatchesFoundException, ServiceNotFoundInOntologyException {
         try {
             if (SEMANTIC_INTERFACE_HOST == null || SEMANTIC_INTERFACE_PATH == null || SEMANTIC_INTERFACE_PORT == null) {
 
@@ -103,7 +103,7 @@ public class ZooKeeperController {
                     e.printStackTrace();
                 }
             }
-            ResponseEntity<String> response = template.postForEntity("http://" + SEMANTIC_INTERFACE_HOST + ":" + SEMANTIC_INTERFACE_PORT + SEMANTIC_INTERFACE_PATH, deviceId, String.class);
+            ResponseEntity<String> response = template.postForEntity("http://" + SEMANTIC_INTERFACE_HOST + ":" + SEMANTIC_INTERFACE_PORT + SEMANTIC_INTERFACE_PATH, deviceReference, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
                 String paths = response.getBody();
                 try {
@@ -113,12 +113,12 @@ public class ZooKeeperController {
                             List<Op> ops = new ArrayList<>();
                             if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH) == null)
                                 ops.add(Op.create("/" + BASE_PATH, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
-                            if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceId) == null)
-                                ops.add(Op.create("/" + BASE_PATH + "/" + deviceId, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
+                            if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceReference) == null)
+                                ops.add(Op.create("/" + BASE_PATH + "/" + deviceReference, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
                             String[] parts = getParts(path);
                             for (String part : parts) {
-                                if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceId + "/" + part) == null)
-                                    ops.add(Op.create("/" + BASE_PATH + "/" + deviceId + "/" + part, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
+                                if (zooKeeperClientManager.getZNodeStats("/" + BASE_PATH + "/" + deviceReference + "/" + part) == null)
+                                    ops.add(Op.create("/" + BASE_PATH + "/" + deviceReference + "/" + part, new byte[]{(byte) 1}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT));
                             }
                             zooKeeperClientManager.multi(ops);
                         }

@@ -17,7 +17,7 @@ import static org.quartz.TriggerBuilder.newTrigger;
 
 public class DirectoryHealthCheck implements Job {
 
-    private static final Integer HEALTH_CHECK_FREQUENCY_SECONDS = 90;
+    private static final Integer HEALTH_CHECK_FREQUENCY_SECONDS = 30;
     private static final String HEALTH = "/health";
     private static final String UP = "UP";
     private final ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
