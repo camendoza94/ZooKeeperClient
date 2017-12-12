@@ -16,7 +16,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.WebApplicationException;
+import javax.xml.ws.WebServiceException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -138,7 +138,7 @@ public class ZooKeeperController {
                 throw new NoMatchesFoundException();
             else if (e.getStatusCode().equals(HttpStatus.SERVICE_UNAVAILABLE))
                 throw new ServiceNotFoundInOntologyException();
-            throw new WebApplicationException();
+            throw new WebServiceException();
         }
 
     }

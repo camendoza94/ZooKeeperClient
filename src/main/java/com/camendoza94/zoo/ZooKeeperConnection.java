@@ -24,10 +24,16 @@ class ZooKeeperConnection {
 
             input = new FileInputStream("./src/main/resources/zookeeper.properties");
             prop.load(input);
-            String host = prop.getProperty("server.host");
-            String port = prop.getProperty("server.port");
+            String host1 = prop.getProperty("server.host1");
+            String port1 = prop.getProperty("server.port1");
 
-            zoo = new ZooKeeper(host + ":" + port, 6000, we -> {
+            String host2 = prop.getProperty("server.host2");
+            String port2 = prop.getProperty("server.port2");
+
+            String host3 = prop.getProperty("server.host3");
+            String port3 = prop.getProperty("server.port3");
+
+            zoo = new ZooKeeper(host1 + ":" + port1 + "," + host2 + ":" + port2 + "," + host3 + ":" + port3  , 60000, we -> {
                 if (we.getState() == KeeperState.SyncConnected) {
                     connectionLatch.countDown();
                 }

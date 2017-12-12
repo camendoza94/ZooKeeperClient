@@ -33,9 +33,10 @@ repositories {
 
 
 dependencies {
-    compile 'org.springframework.boot:spring-boot-starter'
-    compile 'org.springframework:spring-web'
-    compile 'org.springframework.cloud:spring-cloud-starter-zookeeper-discovery'
+    compile 'org.springframework.boot:spring-boot-starter-data-rest'
+    compile('org.apache.zookeeper:zookeeper:3.4.5') {
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    }
     compile 'com.google.code.gson:gson:2.8.2'
     compile 'org.quartz-scheduler:quartz:2.2.1'
     compile 'org.quartz-scheduler:quartz-jobs:2.2.1'

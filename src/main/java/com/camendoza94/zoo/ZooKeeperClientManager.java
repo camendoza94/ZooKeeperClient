@@ -46,19 +46,11 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
     @Override
     public Stat getZNodeStats(String path) throws KeeperException,
             InterruptedException {
-        Stat stat = zooKeeper.exists(path, true);
-        if (stat != null) {
-            System.out.println("Node exists and the node version is "
-                    + stat.getVersion());
-        } else {
-            System.out.println("Node does not exist");
-        }
-        return stat;
+        return zooKeeper.exists(path, true);
     }
 
     @Override
-    public int getZNodeData(String path, boolean watchFlag) throws KeeperException,
-            InterruptedException {
+    public int getZNodeData(String path, boolean watchFlag) {
         final CountDownLatch connectedSignal = new CountDownLatch(1);
         try {
             Stat stat = getZNodeStats(path);
@@ -80,7 +72,6 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
                                 byte[] bn = zooKeeper.getData(path,
                                         false, null);
                                 Integer data = (int) bn[0];
-                                System.out.println(data);
                                 connectedSignal.countDown();
 
                             } catch (Exception ex) {
@@ -93,11 +84,9 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
                 }
 
                 Integer data = (int) b[0];
-                System.out.println(data);
                 connectedSignal.countDown();
                 return data;
             } else {
-                System.out.println("Node does not exist");
                 return -1;
             }
         } catch (Exception e) {
@@ -121,10 +110,7 @@ public class ZooKeeperClientManager implements ZooKeeperManager {
 
         if (stat != null) {
             children = zooKeeper.getChildren(path, false);
-            for (String aChildren : children) System.out.println(aChildren);
 
-        } else {
-            System.out.println("Node does not exists");
         }
         return children;
     }

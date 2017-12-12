@@ -22,7 +22,7 @@ public class DirectoryHealthCheck implements Job {
     private final ZooKeeperClientManager zooKeeperClientManager = new ZooKeeperClientManager();
 
     @Override
-    public void execute(JobExecutionContext jec) throws JobExecutionException {
+    public void execute(JobExecutionContext jec) {
         try {
             System.out.println("Start ServiceHealth Check");
             RestTemplate template = new RestTemplate();
